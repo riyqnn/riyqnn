@@ -1,5 +1,13 @@
 ## Hi there 👋
 
+
+![Header](img/github-header-image.png)
+
+
+### Tech Stack : 
+
+[![My Skills](https://skillicons.dev/icons?i=laravel,java,tailwind,react,py,html,css,vue,js,ts,vite,solidity,postman,postgres,php,mysql,github,gitlab,c+,angular,kotlin,gradle,git,nextjs)](https://skillicons.dev)
+
 <!--
 **riyqnn/riyqnn** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
 
@@ -14,3 +22,9 @@ Here are some ideas to get you started:
 - 😄 Pronouns: ...
 - ⚡ Fun fact: ...
 -->
+
+###
+
+<img src="https://raw.githubusercontent.com/riyqnn/riyqnn/output/snake.svg" alt="Snake animation" />
+
+###
