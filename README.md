@@ -22,9 +22,3 @@ Here are some ideas to get you started:
 - 😄 Pronouns: ...
 - ⚡ Fun fact: ...
 -->
-
-### 🐍 GitHub Activity
-
-<img src="https://raw.githubusercontent.com/riyqnn/riyqnn/output/snake.svg" alt="Snake animation" />
-
-###
