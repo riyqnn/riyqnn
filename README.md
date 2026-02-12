@@ -94,7 +94,6 @@ text-align: center;
 position: relative;
 overflow: hidden;
 ">
-<div style="font-size: 50px; margin-bottom: 10px;">📊</div>
 <img src="https://ghchart.rshah.org/riyqnn" alt="GitHub Contributions" style="border-radius: 10px; opacity: 0.9;">
 </div>
 </div>
