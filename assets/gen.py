@@ -1,168 +1,193 @@
-"""Generates every SVG in this folder. Run: python3 assets/gen.py"""
+"""Generates every SVG in this folder. Run: python3 assets/gen.py
+
+Look: a dark profile card (night sky base) whose loud element is a
+pixel-dithered sunset. Project cells show a full-viewport screenshot of each landing page.
+Fonts (OFL, ASCII subsets in fonts/) are embedded so they render on GitHub:
+Instrument Sans everywhere: 700 for names and values, 600 for labels.
+"""
+import base64
+import math
 import random
 from pathlib import Path
 
 OUT = Path(__file__).parent
-ACC = "#FF4D1A"
-GRAY = "#8B949E"
-MONO = "ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace"
+BG, LINE, MARK = "#0E1324", "#323A5A", "#59638C"  # quiet guides, slightly brighter markers
+FG, DIM = "#ECEEF6", "#8A91AB"
+SUN = "#FFC857"
+BAYER = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]]
+# dusk sky, zenith to horizon
+SKY = ["#111836", "#1B2462", "#2E3192", "#55369F", "#8B3A99", "#C2427F", "#EC5A6A", "#FF8552", "#FFB24A", "#FFD27A"]
+WATER = ["#0F1430", "#181E48", "#262A66", "#3A2F7A"]
+CLOUD = ["#6B3F8F", "#B5559A", "#F27D8E", "#FFB07A", "#FFE1B0"]  # shade to sunlit rim
 
-# 5x7 dot-matrix glyphs
-FONT = {
-    "A": "01110 10001 10001 11111 10001 10001 10001",
-    "B": "11110 10001 10001 11110 10001 10001 11110",
-    "D": "11110 10001 10001 10001 10001 10001 11110",
-    "E": "11111 10000 10000 11110 10000 10000 11111",
-    "F": "11111 10000 10000 11110 10000 10000 10000",
-    "G": "01110 10001 10000 10111 10001 10001 01111",
-    "H": "10001 10001 10001 11111 10001 10001 10001",
-    "I": "01110 00100 00100 00100 00100 00100 01110",
-    "K": "10001 10010 10100 11000 10100 10010 10001",
-    "L": "10000 10000 10000 10000 10000 10000 11111",
-    "M": "10001 11011 10101 10101 10001 10001 10001",
-    "N": "10001 10001 11001 10101 10011 10001 10001",
-    "O": "01110 10001 10001 10001 10001 10001 01110",
-    "R": "11110 10001 10001 11110 10100 10010 10001",
-    "S": "01111 10000 10000 01110 00001 00001 11110",
-    "T": "11111 00100 00100 00100 00100 00100 00100",
-    "U": "10001 10001 10001 10001 10001 10001 01110",
-    "W": "10001 10001 10001 10101 10101 10101 01010",
-    "X": "10001 10001 01010 00100 01010 10001 10001",
-    "Y": "10001 10001 01010 00100 00100 00100 00100",
-    "3": "11111 00010 00100 00010 00001 10001 01110",
-    "×": "00000 10001 01010 00100 01010 10001 00000",
-    "↗": "00000 01111 00011 00101 01001 10000 00000",
-    " ": "00000 00000 00000 00000 00000 00000 00000",
+PROFILE = {
+    "name": "Riyan",
+    "role": "SWE, AI INFRA AND BLOCKCHAIN",
+    "cells": [("Repositories", "62"), ("Handle", "@riyqnn"), ("Role", "Coffee")],
 }
+PROJECTS = [("morphic", "Morphic", "morphic.cloud"), ("tawf", "Tawf Finance", "tawf.finance")]  # shots/<slug>.jpg
 
 
-def dots(text, col0=0, row0=0):
-    """Yield (col, row, char_index, char) for every lit dot in text."""
-    for i, ch in enumerate(text):
-        for r, bits in enumerate(FONT[ch].split()):
-            for c, b in enumerate(bits):
-                if b == "1":
-                    yield col0 + i * 6 + c, row0 + r, i, ch
+def font_css():
+    def face(family, file, weight):
+        data = base64.b64encode((OUT / "fonts" / file).read_bytes()).decode()
+        return f"@font-face{{font-family:'{family}';font-weight:{weight};src:url(data:font/woff2;base64,{data}) format('woff2')}}"
+    return face("IS", "instrument-sans-600.woff2", 600) + face("IS", "instrument-sans-700.woff2", 700)
 
 
-def svg(w, h, style, body, label):
-    return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" viewBox="0 0 {w} {h}" '
-            f'role="img" aria-label="{label}"><style>{style}</style>{body}</svg>\n')
-
-
-# ── 01 HERO ─────────────────────────────────────────────────────────────
-def hero(theme):
-    rnd = random.Random(7)  # same seed → both themes get identical choreography
-    fg, grid, dim = ("#EDEDED", "#FFFFFF", "#6E7681") if theme == "dark" else ("#0A0A0A", "#000000", "#8C959F")
-    P, W, H, T = 14, 1200, 476, 10  # pitch, canvas, loop seconds
-    C0, R1, R2 = 10, 9, 19          # first column, row of each line
-    X = lambda c: 7 + P * c
-    span = 65                       # columns in "RIYAN AINUR"
-    sweep = 1.6                     # seconds for the decode beam
-
-    style = f"""
-.d{{fill:{ACC};opacity:0;animation:d {T}s linear infinite backwards}}
-@keyframes d{{0%{{opacity:0;fill:{ACC}}}.6%{{opacity:1}}1.2%{{opacity:.25}}1.8%{{opacity:1;fill:{ACC}}}5%{{fill:{fg}}}
-78%{{opacity:1;fill:{fg}}}78.6%{{fill:{ACC}}}79.2%{{opacity:.2}}79.8%{{opacity:1}}82%{{opacity:0}}100%{{opacity:0}}}}
-.beam{{animation:b {T}s linear infinite}}
-@keyframes b{{0%{{transform:translateX(0);opacity:1}}16%{{transform:translateX({span*P}px);opacity:1}}16.5%,77.9%{{opacity:0;transform:translateX({span*P}px)}}
-78%{{opacity:1;transform:translateX(0)}}94%{{opacity:1;transform:translateX({span*P}px)}}94.5%,100%{{opacity:0}}}}
-.g1{{animation:g1 {T}s step-end infinite}}.g2{{animation:g2 {T}s step-end infinite}}
-@keyframes g1{{0%{{transform:none}}44%{{transform:translateX({P}px)}}44.4%{{transform:translateX(-{P//2}px)}}44.8%{{transform:none}}}}
-@keyframes g2{{0%{{transform:none}}61%{{transform:translateX(-{2*P}px)}}61.3%{{transform:translateX({P}px)}}61.7%{{transform:none}}}}
-.tear{{opacity:0}}.t1{{animation:t1 {T}s step-end infinite}}.t2{{animation:t2 {T}s step-end infinite}}
-@keyframes t1{{0%{{opacity:0}}44%{{opacity:.9}}44.8%{{opacity:0}}}}
-@keyframes t2{{0%{{opacity:0}}61%{{opacity:.9}}61.7%{{opacity:0}}}}
-.cur{{animation:c 1.1s step-end infinite}}@keyframes c{{50%{{opacity:0}}}}
-.tw{{opacity:0;animation:tw linear infinite}}@keyframes tw{{0%,88%,100%{{opacity:0}}94%{{opacity:1}}}}
-.lbl{{font:500 11px/1 {MONO};letter-spacing:.18em;fill:{dim}}}
-.s1,.s2,.s3{{animation:{T}s step-end infinite}}.s1{{animation-name:s1}}.s2{{animation-name:s2}}.s3{{animation-name:s3}}
-@keyframes s1{{0%{{opacity:1}}16%,100%{{opacity:0}}}}
-@keyframes s2{{0%{{opacity:0}}16%{{opacity:1}}78%,100%{{opacity:0}}}}
-@keyframes s3{{0%{{opacity:0}}78%,100%{{opacity:1}}}}
-.pulse{{animation:p 1.1s ease-in-out infinite}}@keyframes p{{50%{{opacity:.2}}}}
+STYLE = font_css() + f"""
+.s,.m,.lbl{{font-family:IS,'Segoe UI',Helvetica,Arial,sans-serif;font-weight:600}}
+.lbl{{font-size:13px;letter-spacing:.1em;fill:{DIM};text-transform:uppercase}}
+.drift{{animation:drift 120s steps(150) infinite}}@keyframes drift{{to{{transform:translateX(-1200px)}}}}
+.sh{{animation:sh ease-in-out infinite}}@keyframes sh{{0%,100%{{opacity:.15}}50%{{opacity:1}}}}
 """
-    b = [f'<defs><pattern id="g" width="{P}" height="{P}" patternUnits="userSpaceOnUse">'
-         f'<circle cx="{P/2}" cy="{P/2}" r="1.1" fill="{grid}" fill-opacity=".09"/></pattern>'
-         f'<linearGradient id="trail" x1="0" x2="1"><stop offset="0" stop-color="{ACC}" stop-opacity="0"/>'
-         f'<stop offset="1" stop-color="{ACC}" stop-opacity=".22"/></linearGradient>'
-         f'<filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4" result="b"/>'
-         f'<feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>',
-         f'<rect width="{W}" height="{H}" fill="url(#g)"/>']
-
-    # ambient twinkles on the grid
-    for _ in range(46):
-        c, r = rnd.randrange(1, W // P - 1), rnd.randrange(1, H // P - 1)
-        col = ACC if rnd.random() < .35 else fg
-        b.append(f'<circle class="tw" cx="{X(c)}" cy="{X(r)}" r="1.8" fill="{col}" '
-                 f'style="animation-duration:{rnd.uniform(4, 9):.2f}s;animation-delay:-{rnd.uniform(0, 9):.2f}s"/>')
-
-    # tear lines flashed during glitches
-    for cls, row in (("t1", R1), ("t2", R2)):
-        b.append(f'<rect class="tear {cls}" x="0" y="{X(row + 3) - 1}" width="{W}" height="2" fill="{ACC}"/>')
-
-    # the name
-    hot = []
-    for cls, text, row, lag in (("g1", "RIYAN AINUR", R1, 0), ("g2", "RAHMAN", R2, .18)):
-        b.append(f'<g class="{cls}">')
-        for c, r, _, _ in dots(text, C0, row):
-            d = (c - C0) / span * sweep + rnd.uniform(0, .3) + lag
-            b.append(f'<circle class="d" cx="{X(c)}" cy="{X(r)}" r="5" style="animation-delay:{d:.2f}s"/>')
-            if rnd.random() < .06:
-                hot.append((c, r))
-        b.append('</g>')
-    for c, r in hot:
-        b.append(f'<circle class="tw" cx="{X(c)}" cy="{X(r)}" r="5" fill="{ACC}" '
-                 f'style="animation-duration:{rnd.uniform(3, 6):.2f}s;animation-delay:-{rnd.uniform(0, 6):.2f}s"/>')
-
-    # cursor block after RAHMAN
-    cc = C0 + 6 * 6
-    b.append(f'<g class="cur" fill="{ACC}" filter="url(#glow)">' + "".join(
-        f'<circle cx="{X(c)}" cy="{X(r)}" r="5"/>' for c in range(cc, cc + 3) for r in range(R2, R2 + 7)) + '</g>')
-
-    # decode beam
-    y0, y1 = X(R1) - 40, X(R2 + 6) + 40
-    b.append(f'<g class="beam"><rect x="{X(C0) - 160}" y="{y0}" width="160" height="{y1 - y0}" fill="url(#trail)"/>'
-             f'<rect x="{X(C0) - 1}" y="{y0}" width="2" height="{y1 - y0}" fill="{ACC}" filter="url(#glow)"/></g>')
-
-    # chrome: status + registration marks
-    lx, ly = X(C0) - 5, 56
-    b.append(f'<circle class="pulse" cx="{lx + 4}" cy="{ly - 4}" r="3.5" fill="{ACC}"/>')
-    for i, s in enumerate(("DECODING", "ONLINE", "REBOOT"), 1):
-        b.append(f'<text class="lbl s{i}" x="{lx + 18}" y="{ly}">{s}</text>')
-    b.append(f'<text class="lbl" x="{X(C0 + span - 1) + 5}" y="{ly}" text-anchor="end">RAR/01</text>')
-    m = 24
-    for x, y, sx, sy in ((m, m, 1, 1), (W - m, m, -1, 1), (m, H - m, 1, -1), (W - m, H - m, -1, -1)):
-        b.append(f'<path d="M{x} {y + 14 * sy}V{y}H{x + 14 * sx}" fill="none" stroke="{dim}" stroke-width="1"/>')
-
-    return svg(W, H, style, "".join(b), "RIYAN AINUR RAHMAN")
 
 
-# ── 02 MICRO IDENTITY / 03 LINKS ───────────────────────────────────────
-def line(text, pitch, r, start=0.0, step=0.05):
-    cols = len(text) * 6 - 1
-    pad = pitch
-    w, h = cols * pitch + 2 * pad, 7 * pitch + 2 * pad
-    style = (".c{opacity:0;animation:in .5s steps(3) forwards}"
-             "@keyframes in{0%{opacity:0}40%{opacity:1}60%{opacity:.3}100%{opacity:1}}")
-    body = []
-    for c, row, i, ch in dots(text):
-        fill = ACC if ch in "×↗" else GRAY
-        body.append(f'<circle class="c" cx="{pad + c * pitch + pitch / 2:.1f}" cy="{pad + row * pitch + pitch / 2:.1f}" '
-                    f'r="{r}" fill="{fill}" style="animation-delay:{start + i * step:.2f}s"/>')
-    return svg(w, h, style, "".join(body), text.replace("↗", "").strip())
+def svg(w, h, body, label, extra=""):
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="{w}" height="{h}" '
+            f'viewBox="0 0 {w} {h}" role="img" aria-label="{label}"><style>{STYLE}{extra}</style>{body}</svg>\n')
+
+
+def runs(grid, px, x0=0, y0=0):
+    """grid[r][c] = color or None -> one path per color, horizontal runs merged."""
+    paths = {}
+    for r, row in enumerate(grid):
+        c = 0
+        while c < len(row):
+            col = row[c]
+            if col is None:
+                c += 1
+                continue
+            s = c
+            while c < len(row) and row[c] == col:
+                c += 1
+            paths.setdefault(col, []).append(f"M{x0 + s * px} {y0 + r * px}h{(c - s) * px}v{px}h-{(c - s) * px}z")
+    return "".join(f'<path fill="{k}" d="{"".join(v)}"/>' for k, v in paths.items())
+
+
+def dither(ramp, v, c, r):
+    """Ordered-dither a continuous ramp position v (0..len-1) to a ramp color."""
+    i = math.floor(v + (BAYER[r % 4][c % 4] + .5) / 16)
+    return ramp[max(0, min(len(ramp) - 1, i))]
+
+
+def pixel_grid(uid, x, y, w, h):
+    return (f'<defs><pattern id="{uid}" width="8" height="8" patternUnits="userSpaceOnUse">'
+            f'<path d="M0 .5H8M.5 0V8" stroke="{BG}"/></pattern></defs>'
+            f'<rect x="{x}" y="{y}" width="{w}" height="{h}" fill="url(#{uid})"/>')
+
+
+# ── pixel sunset ─────────────────────────────────────────────────────────
+def sunset(x, y, cols=150, rows=22, px=8):
+    sky_rows, sun_c, sun_r, sun_rad = 17, 108, 15.5, 6
+    rnd = random.Random(5)
+    sky = [[None] * cols for _ in range(rows)]
+    for r in range(rows):
+        for c in range(cols):
+            if r < sky_rows:
+                d = math.hypot((c - sun_c) * .55, r - sun_r)
+                v = r / (sky_rows - 1) * (len(SKY) - 1.2) + max(0, 1.6 - d / 6)  # warmer near the sun
+                col = dither(SKY, v, c, r)
+                if math.hypot(c - sun_c, (r - sun_r) * 1.15) < sun_rad:
+                    col = "#FFF1C1" if math.hypot(c - sun_c, r - sun_r) < sun_rad - 1.6 else SUN
+            else:
+                col = dither(WATER, (r - sky_rows) / (rows - sky_rows) * 3, c, r)
+            sky[r][c] = col
+
+    # sunset streak clouds, lit from below; periodic in x so the drifting layer tiles seamlessly
+    streaks = [(rnd.uniform(0, cols), rnd.uniform(1.5, sky_rows - 3), rnd.uniform(6, 26), rnd.uniform(.7, 1.4))
+               for _ in range(14)]
+    cloud = [[None] * cols for _ in range(rows)]
+    for r in range(sky_rows - 1):
+        for c in range(cols):
+            best = None
+            for sx, sy, half, th in streaks:
+                dx = (c - sx + cols / 2) % cols - cols / 2
+                edge = half * (1 + .18 * math.sin(r * 2.1 + sx))  # ragged ends
+                k = (dx / edge) ** 2 + ((r - sy) / th) ** 2
+                if k < 1:
+                    lit = .5 + (r - sy) / (2 * th) + (1 - k) * .4  # underside catches the sun
+                    best = max(best or 0, lit)
+            if best is not None:
+                warm = r / sky_rows  # low clouds glow gold, high ones stay violet
+                cloud[r][c] = dither(CLOUD, best * 1.8 + warm * 1.6, c, r)
+
+    W, H = cols * px, rows * px
+    b = [f'<svg x="{x}" y="{y}" width="{W}" height="{H}" overflow="hidden">', runs(sky, px),
+         f'<g class="drift"><g id="cl">{runs(cloud, px)}</g><use href="#cl" xlink:href="#cl" x="{W}"/></g>']
+    for _ in range(36):  # sun glitter on the water, under the sun only
+        c = sun_c + int(rnd.gauss(0, 7))
+        r = rnd.randrange(sky_rows, rows)
+        b.append(f'<rect class="sh" x="{c * px}" y="{r * px}" width="{px * rnd.choice((1, 2, 3))}" height="{px}" '
+                 f'fill="{rnd.choice((SUN, "#FF8552", "#FFF1C1"))}" '
+                 f'style="animation-duration:{rnd.uniform(2, 5):.1f}s;animation-delay:-{rnd.uniform(0, 5):.1f}s"/>')
+    b.append(pixel_grid("px", 0, 0, W, H) + "</svg>")
+    return "".join(b)
+
+
+# ── header card ──────────────────────────────────────────────────────────
+def header():
+    p = PROFILE
+    W, TOP, BAND, INFO = 1200, 52, 176, 132
+    H = TOP + BAND + INFO
+    y0, LX = TOP + BAND, 600
+    b = [f'<rect x=".5" y=".5" width="{W - 1}" height="{H - 1}" rx="10" fill="{BG}" stroke="{LINE}"/>',
+         f'<text class="s" x="28" y="33" font-size="17" font-weight="700" fill="{FG}">riyqnn</text>'
+         f'<rect x="102" y="21" width="9" height="9" fill="{SUN}"/>'
+         f'<text class="lbl" x="120" y="31" style="fill:{FG}">building</text>'
+         f'<text class="m" x="{W - 28}" y="33" font-size="15" fill="{DIM}" text-anchor="end">github.com/riyqnn</text>',
+         sunset(1, TOP),
+         f'<path d="M0 {TOP}.5H{W}M0 {y0}.5H{W}" stroke="{LINE}"/>',
+         f'<text class="s" x="36" y="{y0 + 62}" font-size="44" font-weight="700" letter-spacing="-1" fill="{FG}">{p["name"]}</text>'
+         f'<text class="s" x="37" y="{y0 + 96}" font-size="15" letter-spacing="1.5" fill="{DIM}">{p["role"]}</text>']
+    cw = (W - LX) / len(p["cells"])
+    b.append(f'<path d="' + "".join(f"M{LX + i * cw:.0f}.5 {y0}V{H}" for i in range(len(p["cells"]))) + f'" stroke="{LINE}"/>')
+    for i, (k, v) in enumerate(p["cells"]):
+        cx = LX + i * cw + 26
+        b.append(f'<text class="lbl" x="{cx:.0f}" y="{y0 + 54}">{k}</text>'
+                 f'<text class="s" x="{cx:.0f}" y="{y0 + 88}" font-size="20" font-weight="700" fill="{FG}">{v}</text>')
+    return svg(W, H, "".join(b), f'{p["name"]}: {p["role"]}')
+
+
+# ── project column ───────────────────────────────────────────────────────
+# Two 600px halves sit flush in the README; together they form one ruled grid.
+# Guide lines run edge to edge, small squares mark the intersections, and a
+# sunset-dither strip along the bottom continues across both halves.
+def column(side, slug, title, domain):
+    W, INSET = 600, 32
+    ys = [20, 76, 431, 471]                             # horizontal guides
+    H = ys[-1] + 20
+    outer, inner = (INSET, W) if side == 0 else (W - INSET, 0)
+    lo, hi = min(outer, inner), max(outer, inner)
+    tx = lo + 28
+    b = [f'<rect width="{W}" height="{H}" fill="{BG}"/>',
+         f'<path d="' + "".join(f"M0 {y}.5H{W}" for y in ys) + f'M{outer}.5 0V{H}' + (f"M.5 0V{H}" if side else "")
+         + f'" stroke="{LINE}"/>',
+         f'<text class="s" x="{tx}" y="{ys[0] + 37}" font-size="16" font-weight="700" fill="{SUN}">0{side + 1}</text>'
+         f'<text class="s" x="{tx + 32}" y="{ys[0] + 37}" font-size="22" font-weight="700" fill="{FG}">{title}</text>'
+         f'<text class="m" x="{hi - 28}" y="{ys[0] + 36}" font-size="15" fill="{DIM}" text-anchor="end">{domain}</text>']
+    shot = base64.b64encode((OUT / "shots" / f"{slug}.jpg").read_bytes()).decode()
+    b.append(f'<image x="{lo + 1}" y="{ys[1] + 1}" width="{hi - lo - 1}" height="{ys[2] - ys[1] - 1}" '
+             f'preserveAspectRatio="xMidYMin slice" href="data:image/jpeg;base64,{shot}"/>')
+    # sunset strip, hue continues from the left half into the right half
+    px, rows = 8, (ys[3] - ys[2]) // 8
+    strip = [[None] * (W // px) for _ in range(rows)]
+    for r in range(rows):
+        for c in range(W // px):
+            v = (side * W + c * px) / (2 * W) * (len(SKY) - 1) - (1 - r / (rows - 1)) * 2.5
+            if v > -.4:
+                strip[r][c] = dither(SKY, v, c, r)
+    b.append(runs(strip, px, 0, ys[2] + 1) + pixel_grid(f"px{side}", 0, ys[2] + 1, W, rows * px))
+    for y in ys:
+        for x in (outer, inner):
+            b.append(f'<rect x="{x - 3}" y="{y - 3}" width="7" height="7" fill="{BG}" stroke="{MARK}"/>')
+    return svg(W, H, "".join(b), f"{title} ({domain}) landing page")
 
 
 if __name__ == "__main__":
-    files = {
-        "hero-dark.svg": hero("dark"),
-        "hero-light.svg": hero("light"),
-        "identity.svg": line("SOFTWARE ENGINEER", 4, 1.5, start=1.8),
-        "link-github.svg": line("GITHUB ↗", 3, 1.15, start=2.6),
-        "link-x.svg": line("X ↗", 3, 1.15, start=2.8),
-        "link-linkedin.svg": line("LINKEDIN ↗", 3, 1.15, start=3.0),
-        "link-web.svg": line("WEB ↗", 3, 1.15, start=3.2),
-    }
+    files = {"header.svg": header()}
+    for side, project in enumerate(PROJECTS):
+        files[f"card-{project[0]}.svg"] = column(side, *project)
     for name, content in files.items():
         (OUT / name).write_text(content)
-        print(f"{name:20} {len(content) / 1024:6.1f} KB")
+        print(f"{name:22} {len(content) / 1024:6.1f} KB")
