@@ -23,7 +23,7 @@ CLOUD = ["#6B3F8F", "#B5559A", "#F27D8E", "#FFB07A", "#FFE1B0"]  # shade to sunl
 PROFILE = {
     "name": "Riyan",
     "role": "SWE, AI INFRA AND BLOCKCHAIN",
-    "cells": [("Repositories", "62"), ("Handle", "@riyqnn"), ("Role", "Coffee")],
+    "cells": [("Repositories", "62"), ("Handle", "@riyqnn"), ("Fueled by", "Coffee")],
 }
 PROJECTS = [("morphic", "Morphic", "morphic.cloud"), ("tawf", "Tawf Finance", "tawf.finance")]  # shots/<slug>.jpg
 
